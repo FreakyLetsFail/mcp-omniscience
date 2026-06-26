@@ -77,12 +77,8 @@ Add Omniscience to your MCP client configuration (`mcp_config.json`, `claude_des
 {
   "mcpServers": {
     "omniscience": {
-      "command": "uv",
-      "args": ["run", "python", "-m", "omniscience.server"],
-      "env": {
-        "WORKSPACE_DIR": "/path/to/your/large/project",
-        "PYTHONPATH": "/path/to/mcp-omniscience/src"
-      }
+      "command": "/path/to/mcp-omniscience/run_server.sh",
+      "args": []
     }
   }
 }

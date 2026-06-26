@@ -25,19 +25,13 @@ echo "=========================================================="
 echo "🚀 MCP INTEGRATION INSTRUCTIONS"
 echo "=========================================================="
 echo "Copy and paste the relevant configuration into your client."
-echo "Note: Omniscience should be started via 'uv run'."
 echo ""
 echo "📝 1. Antigravity IDE"
 echo "Add this to your ~/.gemini/config/mcp_config.json:"
 echo '{'
 echo '  "mcpServers": {'
 echo '    "omniscience": {'
-echo '      "command": "uv",'
-echo '      "args": ["run", "python", "-m", "omniscience.server"],'
-echo '      "env": {'
-echo '        "WORKSPACE_DIR": "/Pfad/zu/deinem/Projekt",'
-echo '        "PYTHONPATH": "'$DIR'/src"'
-echo '      }'
+echo '      "command": "'$DIR'/run_server.sh"'
 echo '    }'
 echo '  }'
 echo '}'
@@ -47,12 +41,7 @@ echo "Add this to your claude_desktop_config.json:"
 echo '{'
 echo '  "mcpServers": {'
 echo '    "omniscience": {'
-echo '      "command": "uv",'
-echo '      "args": ["run", "python", "-m", "omniscience.server"],'
-echo '      "env": {'
-echo '        "WORKSPACE_DIR": "/Pfad/zu/deinem/Projekt",'
-echo '        "PYTHONPATH": "'$DIR'/src"'
-echo '      }'
+echo '      "command": "'$DIR'/run_server.sh"'
 echo '    }'
 echo '  }'
 echo '}'
@@ -61,8 +50,7 @@ echo "📝 3. Cursor"
 echo "Go to Settings -> Features -> MCP Servers -> Add New"
 echo "Name: omniscience"
 echo "Type: command"
-echo "Command: uv run python -m omniscience.server"
-echo "(Make sure to set WORKSPACE_DIR and PYTHONPATH appropriately depending on how cursor handles envs)"
+echo "Command: $DIR/run_server.sh"
 echo "=========================================================="
 echo ""
 echo "Initialization complete! You can now close this terminal."
