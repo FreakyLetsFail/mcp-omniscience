@@ -91,19 +91,32 @@ def apply_surgical_patch(symbol_id: str, new_code: str) -> str:
     success, msg = surgical_patch(file_path, symbol_name, new_code)
     return msg
 
+watcher = None
+
 @mcp.tool()
-def rebuild_index() -> str:
-    """Manually trigger a complete re-indexing of the entire workspace."""
+def rebuild_index(path: str = None) -> str:
+    """Manually trigger a complete re-indexing. Provide a 'path' to change the workspace directory."""
+    global workspace_dir, watcher
+    
+    if path:
+        if not os.path.isdir(path):
+            return f"Error: Directory {path} does not exist."
+        workspace_dir = path
+        if watcher:
+            watcher.stop()
+        watcher = WorkspaceWatcher(workspace_dir, process_file)
+        watcher.start()
+        
     try:
         initial_index()
-        return "Workspace successfully re-indexed!"
+        return f"Workspace {workspace_dir} successfully re-indexed!"
     except Exception as e:
         return f"Failed to rebuild index: {e}"
 
 import threading
 
 def main():
-    global vector_db, graph_db, workspace_dir
+    global vector_db, graph_db, workspace_dir, watcher
     workspace_dir = os.environ.get("WORKSPACE_DIR", ".")
     
     vector_db = VectorDB()
@@ -120,7 +133,8 @@ def main():
         # Run server using standard I/O
         mcp.run(transport="stdio")
     finally:
-        watcher.stop()
+        if watcher:
+            watcher.stop()
 
 if __name__ == "__main__":
     main()
