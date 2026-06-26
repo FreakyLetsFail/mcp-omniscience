@@ -30,10 +30,29 @@ def process_file(file_path: str):
     except Exception as e:
         print(f"Error processing {file_path}: {e}", file=sys.stderr)
 
-def initial_index():
-    files = scan_workspace(workspace_dir)
-    for f in files:
-        process_file(f)
+indexing_status = "idle"
+indexing_progress = ""
+
+def background_index():
+    global indexing_status, indexing_progress
+    indexing_status = "indexing"
+    indexing_progress = "Scanning files..."
+    try:
+        files = scan_workspace(workspace_dir)
+        total = len(files)
+        for i, f in enumerate(files):
+            indexing_progress = f"Processing {i+1}/{total}..."
+            process_file(f)
+        indexing_status = "ready"
+        indexing_progress = f"Finished processing {total} files."
+    except Exception as e:
+        indexing_status = "error"
+        indexing_progress = str(e)
+
+@mcp.tool()
+def get_index_status() -> str:
+    """Check the status of the background indexing process."""
+    return f"Status: {indexing_status}\nProgress: {indexing_progress}"
 
 @mcp.tool()
 def semantic_search(query: str) -> str:
@@ -107,11 +126,8 @@ def rebuild_index(path: str = None) -> str:
         watcher = WorkspaceWatcher(workspace_dir, process_file)
         watcher.start()
         
-    try:
-        initial_index()
-        return f"Workspace {workspace_dir} successfully re-indexed!"
-    except Exception as e:
-        return f"Failed to rebuild index: {e}"
+    threading.Thread(target=background_index, daemon=True).start()
+    return f"Started re-indexing workspace {workspace_dir} in the background. Use get_index_status() to check progress."
 
 import threading
 
@@ -123,7 +139,7 @@ def main():
     graph_db = GraphDB()
     
     # Run initial indexing in background to avoid blocking MCP handshake
-    threading.Thread(target=initial_index, daemon=True).start()
+    threading.Thread(target=background_index, daemon=True).start()
     
     # Start watcher for incremental updates
     watcher = WorkspaceWatcher(workspace_dir, process_file)
