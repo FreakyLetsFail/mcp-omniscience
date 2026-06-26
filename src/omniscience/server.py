@@ -20,11 +20,13 @@ def process_file(file_path: str):
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             code = f.read()
-        symbols = extract_symbols(file_path, code.encode("utf-8"))
+        symbols, dependencies = extract_symbols(file_path, code.encode("utf-8"))
         vector_db.upsert_symbols(symbols)
-        # Note: Graph dependency extraction would happen here for Phase 2
-        # For now, we clear the file dependencies
+        
+        # Clear existing file dependencies and insert new ones
         graph_db.clear_file_dependencies(file_path)
+        for caller_id, callee_name in dependencies:
+            graph_db.add_dependency(caller_id, callee_name)
     except Exception as e:
         print(f"Error processing {file_path}: {e}", file=sys.stderr)
 
@@ -46,11 +48,15 @@ def semantic_search(query: str) -> str:
 
 @mcp.tool()
 def graph_query(symbol_id: str) -> str:
-    """Find the blast radius (dependents) for a given symbol_id."""
-    deps = graph_db.get_blast_radius(symbol_id)
+    """Find the blast radius (which functions call this symbol)."""
+    # symbol_id is typically "file_path::symbol_name"
+    parts = symbol_id.split("::")
+    symbol_name = parts[1] if len(parts) == 2 else symbol_id
+    
+    deps = graph_db.get_blast_radius(symbol_name)
     if not deps:
-        return f"No dependents found for {symbol_id}."
-    return "\n".join(deps)
+        return f"No dependents found calling '{symbol_name}'."
+    return "The following functions call this symbol:\n" + "\n".join(deps)
 
 @mcp.tool()
 def surgical_read(symbol_id: str) -> str:
@@ -67,7 +73,7 @@ def surgical_read(symbol_id: str) -> str:
     with open(file_path, "r", encoding="utf-8") as f:
         code_bytes = f.read().encode("utf-8")
         
-    symbols = extract_symbols(file_path, code_bytes)
+    symbols, _ = extract_symbols(file_path, code_bytes)
     for s in symbols:
         if s["name"] == symbol_name:
             return s["code"]

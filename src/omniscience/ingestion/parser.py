@@ -22,23 +22,36 @@ TS_QUERY_STR = """
 (arrow_function) @def
 """
 
+PY_CALL_QUERY_STR = """
+(call function: (identifier) @callee)
+(call function: (attribute attribute: (identifier) @callee))
+"""
+
+TS_CALL_QUERY_STR = """
+(call_expression function: (identifier) @callee)
+(call_expression function: (member_expression property: (property_identifier) @callee))
+"""
+
 PY_QUERY = Query(PY_LANGUAGE, PY_QUERY_STR)
 TS_QUERY = Query(TS_LANGUAGE, TS_QUERY_STR)
 
+PY_CALL_QUERY = Query(PY_LANGUAGE, PY_CALL_QUERY_STR)
+TS_CALL_QUERY = Query(TS_LANGUAGE, TS_CALL_QUERY_STR)
+
 def get_parser_and_query(extension: str):
     if extension == ".py":
-        return Parser(PY_LANGUAGE), PY_QUERY
+        return Parser(PY_LANGUAGE), PY_QUERY, PY_CALL_QUERY
     elif extension in (".ts", ".tsx"):
-        return Parser(TS_LANGUAGE), TS_QUERY
+        return Parser(TS_LANGUAGE), TS_QUERY, TS_CALL_QUERY
     else:
         raise ValueError(f"Unsupported extension: {extension}")
 
-def extract_symbols(file_path: str, code_bytes: bytes) -> List[Dict[str, Any]]:
+def extract_symbols(file_path: str, code_bytes: bytes) -> tuple[List[Dict[str, Any]], List[tuple[str, str]]]:
     ext = os.path.splitext(file_path)[1]
     try:
-        parser, query = get_parser_and_query(ext)
+        parser, query, call_query = get_parser_and_query(ext)
     except ValueError:
-        return []
+        return [], []
 
     tree = parser.parse(code_bytes)
     root_node = tree.root_node
@@ -50,6 +63,7 @@ def extract_symbols(file_path: str, code_bytes: bytes) -> List[Dict[str, Any]]:
         matches = []
 
     symbols = []
+    dependencies = []
     
     for pattern_index, match_dict in matches:
         defs = match_dict.get("def", [])
@@ -60,13 +74,27 @@ def extract_symbols(file_path: str, code_bytes: bytes) -> List[Dict[str, Any]]:
                 if n.parent == d or n.parent == d.parent:
                     name_val = n.text.decode('utf8')
                     break
+                    
+            symbol_id = f"{file_path}::{name_val}"
             symbols.append({
-                "id": f"{file_path}::{name_val}",
+                "id": symbol_id,
                 "file_path": file_path,
                 "name": name_val,
                 "code": d.text.decode('utf8'),
                 "start_line": d.start_point[0],
                 "end_line": d.end_point[0]
             })
+            
+            # Find dependencies within this function
+            try:
+                call_cursor = QueryCursor(call_query)
+                call_matches = call_cursor.matches(d)
+                for _, call_dict in call_matches:
+                    callees = call_dict.get("callee", [])
+                    for callee in callees:
+                        callee_name = callee.text.decode('utf8')
+                        dependencies.append((symbol_id, callee_name))
+            except Exception:
+                pass
 
-    return symbols
+    return symbols, dependencies
