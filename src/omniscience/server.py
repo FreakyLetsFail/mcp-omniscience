@@ -121,6 +121,12 @@ def rebuild_index(path: str = None) -> str:
         if not os.path.isdir(path):
             return f"Error: Directory {path} does not exist."
         workspace_dir = path
+        
+        # Re-initialize DB paths for the new workspace
+        db_dir = os.path.join(workspace_dir, ".omniscience")
+        vector_db.db = __import__("lancedb").connect(os.path.join(db_dir, "lancedb"))
+        graph_db.conn = __import__("sqlite3").connect(os.path.join(db_dir, "graph.db"), check_same_thread=False)
+        
         if watcher:
             watcher.stop()
         watcher = WorkspaceWatcher(workspace_dir, process_file)
@@ -135,13 +141,15 @@ def main():
     global vector_db, graph_db, workspace_dir, watcher
     workspace_dir = os.environ.get("WORKSPACE_DIR", ".")
     
-    vector_db = VectorDB()
-    graph_db = GraphDB()
+    db_dir = os.path.join(workspace_dir, ".omniscience")
+    vector_db_path = os.path.join(db_dir, "lancedb")
+    graph_db_path = os.path.join(db_dir, "graph.db")
     
-    # Run initial indexing in background to avoid blocking MCP handshake
-    threading.Thread(target=background_index, daemon=True).start()
+    vector_db = VectorDB(db_path=vector_db_path)
+    graph_db = GraphDB(db_path=graph_db_path)
     
-    # Start watcher for incremental updates
+    # Start watcher for incremental updates only.
+    # Heavy indexing is now delegated to the CLI tool `omniscience index .` or explicit `rebuild_index` calls.
     watcher = WorkspaceWatcher(workspace_dir, process_file)
     watcher.start()
     

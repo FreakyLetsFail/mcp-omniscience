@@ -17,3 +17,6 @@ dependencies = [
     "tree-sitter-typescript>=0.23.2",
     "watchdog>=6.0.0",
 ]
+
+[project.scripts]
+omniscience = "omniscience.cli:main"

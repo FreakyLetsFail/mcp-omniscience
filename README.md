@@ -62,14 +62,22 @@ Omniscience is designed to be ridiculously fast. We use `uv` for lightning-fast 
 
 ```bash
 # 1. Clone the repository
-# git clone <repo-url>
+git clone https://github.com/FreakyLetsFail/mcp-omniscience.git
 cd mcp-omniscience
 
 # 2. Run the Initialization Script (Downloads model, syncs env)
 ./init.sh
 ```
 
-### IDE Integration
+### 📦 Standalone CLI Indexer (For Large Repositories)
+To prevent your IDE and OS from freezing when opening a massive repository for the first time, Omniscience comes with a standalone CLI tool. It builds the AST Call-Graph and Semantic Vector Database efficiently in the background before you even start your AI.
+
+```bash
+./index.sh index /path/to/your/large/project
+```
+This creates a `.omniscience` folder directly inside your project containing the LanceDB and SQLite databases.
+
+### 🔌 IDE Integration
 
 Add Omniscience to your MCP client configuration (`mcp_config.json`, `claude_desktop_config.json`, etc.):
 
