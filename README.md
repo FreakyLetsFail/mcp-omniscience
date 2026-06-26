@@ -40,6 +40,9 @@ Parses the **AST (Abstract Syntax Tree)** of your codebase in real-time. It maps
 ### 2. Semantic Brain (LanceDB & Voyage-4-nano)
 Generates and stores high-quality semantic embeddings of every code symbol completely locally. Allows the LLM to search for abstract concepts (*"how does the auth routing work?"*) using lightning-fast hybrid search.
 
+## 📖 How to talk to your AI?
+If you're wondering how exactly you should prompt your AI (Claude, Antigravity, Cursor) to make use of these superpowers, check out our **[Prompt Library (PROMPTS.md)](PROMPTS.md)** for copy-pasteable examples!
+
 ---
 
 ## 🛠️ Exposed MCP Tools
