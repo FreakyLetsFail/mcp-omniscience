@@ -9,9 +9,8 @@ class VectorDB:
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self.db = lancedb.connect(db_path)
         
-        # Load local Voyage AI model (voyage-4-nano)
-        # It will automatically download the weights on first run
-        self.model = SentenceTransformer("voyageai/voyage-4-nano", trust_remote_code=True)
+        # We load the model lazily to prevent blocking the MCP handshake
+        self.model = None
         
         self.table_name = "symbols"
         if self.table_name not in self.db.table_names():
@@ -19,12 +18,20 @@ class VectorDB:
         else:
             self.table = self.db.open_table(self.table_name)
 
+    def _get_model(self):
+        if self.model is None:
+            import warnings
+            warnings.filterwarnings('ignore')
+            os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+            self.model = SentenceTransformer("voyageai/voyage-4-nano", trust_remote_code=True)
+        return self.model
+
     def get_embeddings(self, texts: List[str]) -> List[List[float]]:
         if not texts:
             return []
         
-        # sentence-transformers returns numpy arrays, we convert to list
-        embeddings = self.model.encode(texts)
+        model = self._get_model()
+        embeddings = model.encode(texts)
         return embeddings.tolist()
 
     def upsert_symbols(self, symbols: List[Dict[str, Any]]):
