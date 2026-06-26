@@ -91,6 +91,15 @@ def apply_surgical_patch(symbol_id: str, new_code: str) -> str:
     success, msg = surgical_patch(file_path, symbol_name, new_code)
     return msg
 
+@mcp.tool()
+def rebuild_index() -> str:
+    """Manually trigger a complete re-indexing of the entire workspace."""
+    try:
+        initial_index()
+        return "Workspace successfully re-indexed!"
+    except Exception as e:
+        return f"Failed to rebuild index: {e}"
+
 import threading
 
 def main():
