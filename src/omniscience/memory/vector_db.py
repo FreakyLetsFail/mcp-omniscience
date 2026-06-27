@@ -23,7 +23,16 @@ class VectorDB:
             import warnings
             warnings.filterwarnings('ignore')
             os.environ['TOKENIZERS_PARALLELISM'] = 'false'
-            self.model = SentenceTransformer("voyageai/voyage-4-nano", trust_remote_code=True)
+            
+            # Detect Apple Silicon (MPS) or CUDA
+            import torch
+            device = "cpu"
+            if torch.backends.mps.is_available():
+                device = "mps"
+            elif torch.cuda.is_available():
+                device = "cuda"
+                
+            self.model = SentenceTransformer("voyageai/voyage-4-nano", trust_remote_code=True, device=device)
         return self.model
 
     def get_embeddings(self, texts: List[str]) -> List[List[float]]:

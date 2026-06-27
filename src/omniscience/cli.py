@@ -8,19 +8,14 @@ from omniscience.ingestion.parser import extract_symbols
 from omniscience.memory.vector_db import VectorDB
 from omniscience.memory.graph_db import GraphDB
 
-def process_file(file_path: str, vector_db: VectorDB, graph_db: GraphDB):
+def extract_file_data(file_path: str):
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             code = f.read()
-        symbols, dependencies = extract_symbols(file_path, code.encode("utf-8"))
-        vector_db.upsert_symbols(symbols)
-        
-        # Clear existing file dependencies and insert new ones
-        graph_db.clear_file_dependencies(file_path)
-        for caller_id, callee_name in dependencies:
-            graph_db.add_dependency(caller_id, callee_name)
+        return extract_symbols(file_path, code.encode("utf-8"))
     except Exception as e:
-        print(f"Error processing {file_path}: {e}", file=sys.stderr)
+        print(f"\nError reading {file_path}: {e}", file=sys.stderr)
+        return [], []
 
 def main():
     parser = argparse.ArgumentParser(description="Omniscience CLI - The surgical dual-brain indexer")
@@ -42,7 +37,6 @@ def main():
         
         start_time = time.time()
         
-        # Store databases in the workspace directory so the MCP server finds them
         db_dir = os.path.join(workspace_dir, ".omniscience")
         vector_db_path = os.path.join(db_dir, "lancedb")
         graph_db_path = os.path.join(db_dir, "graph.db")
@@ -54,7 +48,10 @@ def main():
         total = len(files)
         
         print(f"🔍 Found {total} supported files to index.")
-        print("⚙️ Processing files (AST parsing + Voyage-4-nano embeddings)...")
+        print("⚙️ Extracting AST and generating embeddings in batches...")
+        
+        symbols_batch = []
+        dependencies_batch = []
         
         for i, f in enumerate(files):
             # Simple progress display
@@ -62,7 +59,22 @@ def main():
             sys.stdout.write(f"\r[{progress:5.1f}%] Processing {i+1}/{total} files...")
             sys.stdout.flush()
             
-            process_file(f, vector_db, graph_db)
+            syms, deps = extract_file_data(f)
+            if syms:
+                symbols_batch.extend(syms)
+            if deps:
+                dependencies_batch.append((f, deps))
+                
+            # Flush batch every 500 symbols or at the very end
+            if len(symbols_batch) >= 500 or i == total - 1:
+                if symbols_batch:
+                    vector_db.upsert_symbols(symbols_batch)
+                    symbols_batch = []
+                for f_path, file_deps in dependencies_batch:
+                    graph_db.clear_file_dependencies(f_path)
+                    for caller_id, callee_name in file_deps:
+                        graph_db.add_dependency(caller_id, callee_name)
+                dependencies_batch = []
             
         duration = time.time() - start_time
         print(f"\n✅ Indexing complete in {duration:.2f} seconds!")

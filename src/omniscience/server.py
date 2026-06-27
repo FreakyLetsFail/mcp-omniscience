@@ -40,9 +40,33 @@ def background_index():
     try:
         files = scan_workspace(workspace_dir)
         total = len(files)
+        
+        symbols_batch = []
+        dependencies_batch = []
+        
         for i, f in enumerate(files):
             indexing_progress = f"Processing {i+1}/{total}..."
-            process_file(f)
+            try:
+                with open(f, "r", encoding="utf-8") as file_obj:
+                    code = file_obj.read()
+                syms, deps = extract_symbols(f, code.encode("utf-8"))
+                if syms:
+                    symbols_batch.extend(syms)
+                if deps:
+                    dependencies_batch.append((f, deps))
+            except Exception as e:
+                print(f"Error reading {f}: {e}", file=sys.stderr)
+                
+            if len(symbols_batch) >= 500 or i == total - 1:
+                if symbols_batch:
+                    vector_db.upsert_symbols(symbols_batch)
+                    symbols_batch = []
+                for f_path, file_deps in dependencies_batch:
+                    graph_db.clear_file_dependencies(f_path)
+                    for caller_id, callee_name in file_deps:
+                        graph_db.add_dependency(caller_id, callee_name)
+                dependencies_batch = []
+                
         indexing_status = "ready"
         indexing_progress = f"Finished processing {total} files."
     except Exception as e:
